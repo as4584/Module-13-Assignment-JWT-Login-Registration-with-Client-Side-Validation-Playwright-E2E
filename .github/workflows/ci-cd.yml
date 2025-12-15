@@ -104,6 +104,19 @@ jobs:
           JWT_ALGORITHM: HS256
           JWT_EXPIRES_MINUTES: 30
 
+      - name: Test API endpoints
+        run: |
+          echo "Testing /health endpoint..."
+          curl -v http://localhost:8000/health
+          
+          echo -e "\n\nTesting /register endpoint..."
+          curl -v -X POST http://localhost:8000/register \
+            -H "Content-Type: application/json" \
+            -d '{"email":"test@example.com","password":"TestPass123!","confirm_password":"TestPass123!"}'
+          
+          echo -e "\n\nTesting static files..."
+          curl -I http://localhost:8000/static/register.html
+
       - name: Run Playwright E2E tests
         run: |
           cd e2e
