@@ -67,13 +67,37 @@ jobs:
       - name: Start FastAPI server
         run: |
           cd backend
-          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          # Start server in background and redirect output to log file
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 > ../server.log 2>&1 &
+          SERVER_PID=$!
+          echo "Server PID: $SERVER_PID"
+          
           # Wait for server to be ready
+          READY=false
           for i in {1..30}; do
-            curl -s http://localhost:8000/health && break
-            echo "Waiting for server to start..."
+            if curl -s http://localhost:8000/health > /dev/null; then
+              echo "✅ Server is ready!"
+              READY=true
+              break
+            fi
+            echo "Waiting for server to start... ($i/30)"
             sleep 2
           done
+          
+          if [ "$READY" = false ]; then
+            echo "❌ Server failed to start. Server logs:"
+            cat ../server.log
+            exit 1
+          fi
+          
+          # Verify server is still running
+          if ! kill -0 $SERVER_PID 2>/dev/null; then
+            echo "❌ Server process died. Server logs:"
+            cat ../server.log
+            exit 1
+          fi
+          
+          echo "Server is running and healthy"
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/auth_db_test
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
@@ -86,6 +110,13 @@ jobs:
           npm run test:e2e:ci
         env:
           BASE_URL: http://localhost:8000
+
+      - name: Show server logs on failure
+        if: failure()
+        run: |
+          echo "==================== SERVER LOGS ===================="
+          cat server.log || echo "No server logs found"
+          echo "===================================================="
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
