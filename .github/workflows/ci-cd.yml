@@ -49,8 +49,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: e2e/package-lock.json
+
+      - name: Cache node modules
+        uses: actions/cache@v3
+        with:
+          path: e2e/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('e2e/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
       - name: Install Playwright dependencies
         run: |
